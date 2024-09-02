@@ -51,7 +51,7 @@ pub struct GitHubClaims {
 /// Fetches the JSON Web Key Set (JWKS) from the specified OIDC provider URL.
 ///
 /// This function sends a GET request to the `.well-known/jwks` endpoint of the provided OIDC URL
-/// to retrieve the JWKS, which contains the public keys used to verify OIDC tokens.
+/// to retrieve the JSON Web Key Set (JWKS), which contains the public keys used to verify OIDC tokens.
 ///
 /// # Arguments
 ///
@@ -72,9 +72,10 @@ pub struct GitHubClaims {
 ///
 /// ```
 /// use git_oidc::fetch_jwks;
+/// use color_eyre::eyre::Result;
 ///
 /// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// async fn main() -> Result<()> {
 ///     let jwks = fetch_jwks("https://token.actions.githubusercontent.com").await?;
 ///     println!("Fetched JWKS: {:?}", jwks);
 ///     Ok(())
@@ -104,15 +105,15 @@ pub async fn fetch_jwks(oidc_url: &str) -> Result<Value> {
     }
 }
 
-/// Validates a GitHub OIDC token against the provided JWKS and expected audience.
+/// Validates a GitHub OIDC token against the provided JSON Web Key Set (JWKS) and expected audience.
 ///
-/// This function decodes and verifies the JWT, checks its claims against expected values,
+/// This function decodes and verifies the JSON Web Token (JWT), checks its claims against expected values,
 /// and ensures it was issued by the expected GitHub OIDC provider.
 ///
 /// # Arguments
 ///
 /// * `token` - A string slice that holds the GitHub OIDC token to validate.
-/// * `jwks` - An Arc<RwLock<Value>> containing the JWKS used to verify the token's signature.
+/// * `jwks` - An Arc<RwLock<Value>> containing the JSON Web Key Set (JWKS) used to verify the token's signature.
 /// * `expected_audience` - A string slice specifying the expected audience claim value.
 ///
 /// # Returns
