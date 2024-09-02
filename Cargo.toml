@@ -1,0 +1,13 @@
+[package]
+name = "git-oidc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+color-eyre = "0.6.3"
+jsonwebtoken = "9.3.0"
+log = "0.4.22"
+reqwest = "0.12.7"
+serde = "1.0.209"
+serde_json = "1.0.127"
+tokio = "1.40.0"
