@@ -1,3 +1,35 @@
+//! # git-oidc
+//!
+//! `git-oidc` is a library for validating GitHub OIDC tokens.
+//!
+//! ## Features
+//!
+//! - Fetch JWKS from GitHub's OIDC provider
+//! - Validate GitHub OIDC tokens
+//! - Check token claims against expected values
+//!
+//! ## Usage
+//!
+//! ```rust
+//! use git_oidc::{fetch_jwks, validate_github_token};
+//! use std::sync::Arc;
+//! use tokio::sync::RwLock;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let jwks = fetch_jwks("https://token.actions.githubusercontent.com").await?;
+//!     let jwks = Arc::new(RwLock::new(jwks));
+//!     
+//!     let token = "your_github_oidc_token";
+//!     let expected_audience = "your_expected_audience";
+//!     
+//!     let claims = validate_github_token(token, jwks, expected_audience).await?;
+//!     println!("Validated claims: {:?}", claims);
+//!     
+//!     Ok(())
+//! }
+//! ```
+
 use color_eyre::eyre::{eyre, Result};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use reqwest;
@@ -16,7 +48,38 @@ pub struct GitHubClaims {
     iat: u64,
 }
 
-
+/// Fetches the JSON Web Key Set (JWKS) from the specified OIDC provider URL.
+///
+/// This function sends a GET request to the `.well-known/jwks` endpoint of the provided OIDC URL
+/// to retrieve the JWKS, which contains the public keys used to verify OIDC tokens.
+///
+/// # Arguments
+///
+/// * `oidc_url` - A string slice that holds the base URL of the OIDC provider.
+///
+/// # Returns
+///
+/// * `Result<Value>` - A Result containing the JWKS as a serde_json::Value if successful,
+///   or an error if the fetch or parsing fails.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The HTTP request to fetch the JWKS fails
+/// * The response cannot be parsed as valid JSON
+///
+/// # Example
+///
+/// ```
+/// use git_oidc::fetch_jwks;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let jwks = fetch_jwks("https://token.actions.githubusercontent.com").await?;
+///     println!("Fetched JWKS: {:?}", jwks);
+///     Ok(())
+/// }
+/// ```
 pub async fn fetch_jwks(oidc_url: &str) -> Result<Value> {
     info!("Fetching JWKS from {}", oidc_url);
     let client = reqwest::Client::new();
@@ -41,8 +104,52 @@ pub async fn fetch_jwks(oidc_url: &str) -> Result<Value> {
     }
 }
 
-
-
+/// Validates a GitHub OIDC token against the provided JWKS and expected audience.
+///
+/// This function decodes and verifies the JWT, checks its claims against expected values,
+/// and ensures it was issued by the expected GitHub OIDC provider.
+///
+/// # Arguments
+///
+/// * `token` - A string slice that holds the GitHub OIDC token to validate.
+/// * `jwks` - An Arc<RwLock<Value>> containing the JWKS used to verify the token's signature.
+/// * `expected_audience` - A string slice specifying the expected audience claim value.
+///
+/// # Returns
+///
+/// * `Result<GitHubClaims>` - A Result containing the validated GitHubClaims if successful,
+///   or an error if validation fails.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The token is not in a valid JWT format
+/// * The token's signature cannot be verified using the provided JWKS
+/// * The token's claims do not match the expected values (e.g., audience, issuer)
+/// * The token is not from the expected GitHub organization or repository (if set in environment)
+///
+/// # Example
+///
+/// ```
+/// use git_oidc::{fetch_jwks, validate_github_token};
+/// use std::sync::Arc;
+/// use tokio::sync::RwLock;
+/// use color_eyre::eyre::Result;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<()> {
+///     let jwks = fetch_jwks("https://token.actions.githubusercontent.com").await?;
+///     let jwks = Arc::new(RwLock::new(jwks));
+///     
+///     let token = "your_github_oidc_token";
+///     let expected_audience = "your_expected_audience";
+///     
+///     let claims = validate_github_token(token, jwks, expected_audience).await?;
+///     println!("Validated claims: {:?}", claims);
+///     
+///     Ok(())
+/// }
+/// ```
 pub async fn validate_github_token(token: &str, jwks: Arc<RwLock<Value>>, expected_audience: &str) -> Result<GitHubClaims> {
     debug!("Starting token validation");
     if !token.starts_with("eyJ") {
