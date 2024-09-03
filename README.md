@@ -26,6 +26,51 @@ git-oidc enables secure, credential-free authentication for custom GitHub integr
 
 ## ⚙️ Usage
 
+### Example Rust Service 
+```rust
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use git_oidc::{fetch_jwks, validate_github_token};
+
+async fn custom_endpoint(
+    token_request: web::Json<TokenRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    match validate_github_token(&token_request.token, data.jwks.clone(), "https://github.com/your-username").await {
+        Ok(claims) => {
+            info!("Token validated successfully");
+            HttpResponse::Ok().json(claims)
+        }
+        Err(e) => {
+            error!("Token validation error: {:?}", e);
+            HttpResponse::BadRequest().body(format!("Invalid token: {}", e))
+        }
+    }
+}    
+
+#[actix_web::main]
+async fn main() -> Result<()> {
+    env_logger::init_from_env(Env::default().default_filter_or("debug"));
+    color_eyre::install()?;
+
+    let github_oidc_url = "https://token.actions.githubusercontent.com";
+    let jwks = Arc::new(RwLock::new(fetch_jwks(github_oidc_url).await?));
+
+    HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(AppState { jwks: jwks.clone() }))
+            .route("/token", web::post().to(custom_endpoint))
+    })
+    .bind("0.0.0.0:3000")?
+    .run()
+    .await?;
+
+    Ok(())
+}
+
+
+```
+
+### Example GitHub Actions Workflow that uses OIDC URL Server
 ```yaml
 name: Get and Validate JWT
 
