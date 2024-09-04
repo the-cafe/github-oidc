@@ -25,21 +25,15 @@ TL;DR
 github-oidc enables secure, credential-free authentication for custom GitHub Actions workflow integrations.
 
 Here's the perfect ideal scenario:
-1. You have a private GitHub repository containing sensitive code or configurations.
-2. Your CI/CD pipeline needs to interact with protected resources (e.g., production databases, cloud services, or internal APIs).
-3. You set up a custom OIDC provider service (separate from github-oidc) to handle authentication for your GitHub Actions.
-4. In your GitHub Actions workflow:
+1. Your Github Actions Workflow needs to interact with protected resources (e.g., production databases, cloud services, or internal APIs).
+2. You set up a custom OIDC provider service (separate from github-oidc) to handle authentication for your GitHub Actions.
+3. In your GitHub Actions workflow:
    - The job requests an OIDC token from GitHub.
    - This token is sent to your custom OIDC provider service.
    - Your service uses github-oidc to validate the token and check the claims (e.g., repository name, workflow, ref).
    - If valid, your service issues short-lived, scoped credentials for the specific task.
-5. The GitHub Action uses these temporary credentials to perform the required operations.
-6. Credentials expire shortly after the job completes, minimizing the risk window.
-
-This approach significantly enhances security by:
-- Eliminating the need for long-lived credentials in your repository
-- Providing fine-grained control over access based on workflow context
-- Ensuring that compromised credentials have a limited lifetime and scope
+4. The GitHub Action uses these temporary credentials to perform the required operations.
+5. Credentials expire shortly after the job completes, minimizing the risk window.
 
 ## 🛠️ Example setup of a Custom OIDC Provider Service
 
