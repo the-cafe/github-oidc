@@ -13,7 +13,7 @@ TL;DR
 
 `cargo add github-oidc`
  
- or add this to your Cargo.toml
+ or add the dependency to your Cargo.toml
  ```toml
  [dependencies]
  github-oidc = "insert_latest_version_here" # e.g. 0.1.4
