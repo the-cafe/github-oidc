@@ -5,28 +5,40 @@
 
 TL;DR
 
-- Rust library for validating GitHub [OIDC tokens](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
+- Rust crate for validating GitHub [OIDC tokens](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
 - Fetches JWKS and verifies token claims for GitHub Actions
 - No more long-lived credentials in your repository
 
 ## 🚀 Installation
 
 `cargo add github-oidc`
+ 
+ or add the dependency to your Cargo.toml
+ ```toml
+ [dependencies]
+ github-oidc = "insert_latest_version_here" # e.g. 0.1.4
+ ```
 
 
-## 🤔 Use Case Scenario
+## 🎯 Ideal Use Case: Secure CI/CD Pipeline for Sensitive Operations
 
-github-oidc enables secure, credential-free authentication for custom GitHub integrations:
+github-oidc enables secure, credential-free authentication for custom GitHub Actions workflow integrations.
 
-1. Set up a custom OIDC provider service (e.g., [railway.app](https://railway.app)).
-2. GitHub Actions generates an OIDC token for your Github Actions.
-3. Your custom OIDC provider service uses github-oidc to validate the token.
-4. Validation can be used for any Github Actions workflow
+Here's the perfect ideal scenario:
+1. Your Github Actions Workflow needs to interact with protected resources (e.g., production databases, cloud services, or internal APIs).
+2. You set up a custom OIDC provider service (e.g., using [railway.app](https://railway.app)) to handle authentication for your GitHub Actions.
+3. In your GitHub Actions workflow:
+   - The job requests an OIDC token from GitHub.
+   - This token is sent to your custom OIDC provider service.
+   - Your service uses `github-oidc` to validate the token and check the github claims (e.g., repository name, workflow, ref).
+   - If valid, your custom OIDC provider service generates short-lived, scoped credentials for the specific task.
+4. The GitHub Action uses these temporary credentials to perform the you desired operations.
+5. Credentials expire shortly after the job completes.
 
 
 ## ⚙️ Usage
 
-### Example Rust Service 
+### Example Custom OIDC Provider Service in Rust
 ```rust
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use github_oidc::{fetch_jwks, validate_github_token};
