@@ -26,21 +26,14 @@ github-oidc enables secure, credential-free authentication for custom GitHub Act
 
 Here's the perfect ideal scenario:
 1. Your Github Actions Workflow needs to interact with protected resources (e.g., production databases, cloud services, or internal APIs).
-2. You set up a custom OIDC provider service (separate from github-oidc) to handle authentication for your GitHub Actions.
+2. You set up a custom OIDC provider service (e.g., using [railway.app](https://railway.app)) to handle authentication for your GitHub Actions.
 3. In your GitHub Actions workflow:
    - The job requests an OIDC token from GitHub.
    - This token is sent to your custom OIDC provider service.
-   - Your service uses github-oidc to validate the token and check the claims (e.g., repository name, workflow, ref).
-   - If valid, your service issues short-lived, scoped credentials for the specific task.
-4. The GitHub Action uses these temporary credentials to perform the required operations.
-5. Credentials expire shortly after the job completes, minimizing the risk window.
-
-## 🛠️ Example setup of a Custom OIDC Provider Service
-
-1. Set up a custom OIDC provider service (e.g., using [railway.app](https://railway.app)) to make your service as easy to integrate as major big league cloud providers (AWS, Azure, etc).
-2. GitHub Actions generates an OIDC token for your Github Actions.
-3. Your custom OIDC provider service uses github-oidc to validate the token.
-4. Based on the validated token claims, your service can make authorization decisions for the GitHub Actions workflow.
+   - Your service uses `github-oidc` to validate the token and check the github claims (e.g., repository name, workflow, ref).
+   - If valid, your custom OIDC provider service generates short-lived, scoped credentials for the specific task.
+4. The GitHub Action uses these temporary credentials to perform the you desired operations.
+5. Credentials expire shortly after the job completes.
 
 
 ## ⚙️ Usage
