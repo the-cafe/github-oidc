@@ -38,7 +38,7 @@ Here's the perfect ideal scenario:
 
 ## ⚙️ Usage
 
-### Example Rust Service 
+### Example Custom OIDC Provider Service in Rust
 ```rust
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use github_oidc::{fetch_jwks, validate_github_token};
