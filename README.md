@@ -1,6 +1,6 @@
-# 🔐 git-oidc
+# 🔐 github-oidc
 
-[![Crates.io](https://img.shields.io/crates/v/git-oidc)](https://crates.io/crates/git-oidc)
+[![Crates.io](https://img.shields.io/crates/v/github-oidc)](https://crates.io/crates/github-oidc)
 
 
 TL;DR
@@ -11,16 +11,16 @@ TL;DR
 
 ## 🚀 Installation
 
-`cargo add git-oidc`
+`cargo add github-oidc`
 
 
 ## 🤔 Use Case Scenario
 
-git-oidc enables secure, credential-free authentication for custom GitHub integrations:
+github-oidc enables secure, credential-free authentication for custom GitHub integrations:
 
 1. Set up a custom OIDC provider service (e.g., [railway.app](https://railway.app)).
 2. GitHub Actions generates an OIDC token for your Github Actions.
-3. Your custom OIDC provider service uses git-oidc to validate the token.
+3. Your custom OIDC provider service uses github-oidc to validate the token.
 4. Validation can be used for any Github Actions workflow
 
 
@@ -29,7 +29,7 @@ git-oidc enables secure, credential-free authentication for custom GitHub integr
 ### Example Rust Service 
 ```rust
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use git_oidc::{fetch_jwks, validate_github_token};
+use github_oidc::{fetch_jwks, validate_github_token};
 
 async fn custom_endpoint(
     token_request: web::Json<TokenRequest>,
