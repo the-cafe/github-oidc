@@ -8,7 +8,7 @@ authors = ["Seif Mamdouh"]
 license = "Apache-2.0"
 repository = "https://github.com/the-cafe/github-oidc"
 keywords = ["github", "oidc", "authentication"]
-categories = ["authentication", "web-programming", "OIDC", "GitHub Actions"]
+categories = ["authentication", "web-programming"]
 
 [dependencies]
 color-eyre = "0.6.3"
