@@ -1,4 +1,4 @@
-use color_eyre::eyre::{eyre, Result};
+use anyhow::{anyhow, Result};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
@@ -44,12 +44,12 @@ pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS> {
             }
             Err(e) => {
                 error!("Failed to parse JWKS response: {:?}", e);
-                Err(eyre!("Failed to parse JWKS"))
+                Err(anyhow!("Failed to parse JWKS"))
             }
         },
         Err(e) => {
             error!("Failed to fetch JWKS: {:?}", e);
-            Err(eyre!("Failed to fetch JWKS"))
+            Err(anyhow!("Failed to fetch JWKS"))
         }
     }
 }
@@ -63,14 +63,14 @@ impl GithubJWKS {
         debug!("Starting token validation");
         if !token.starts_with("eyJ") {
             warn!("Invalid token format received");
-            return Err(eyre!("Invalid token format. Expected a JWT."));
+            return Err(anyhow!("Invalid token format. Expected a JWT."));
         }
 
         let jwks = jwks.read().await;
         debug!("JWKS loaded");
 
         let header = jsonwebtoken::decode_header(token).map_err(|e| {
-            eyre!(
+            anyhow!(
                 "Failed to decode header: {}. Make sure you're using a valid JWT, not a PAT.",
                 e
             )
@@ -81,13 +81,13 @@ impl GithubJWKS {
                 .keys
                 .iter()
                 .find(|k| k.kid == kid)
-                .ok_or_else(|| eyre!("Matching key not found in JWKS"))?;
+                .ok_or_else(|| anyhow!("Matching key not found in JWKS"))?;
 
             let modulus = key.n.as_str();
             let exponent = key.e.as_str();
 
             DecodingKey::from_rsa_components(modulus, exponent)
-                .map_err(|e| eyre!("Failed to create decoding key: {}", e))?
+                .map_err(|e| anyhow!("Failed to create decoding key: {}", e))?
         } else {
             DecodingKey::from_secret("your_secret_key".as_ref())
         };
@@ -98,7 +98,7 @@ impl GithubJWKS {
         }
 
         let token_data = decode::<GitHubClaims>(token, &decoding_key, &validation)
-            .map_err(|e| eyre!("Failed to decode token: {}", e))?;
+            .map_err(|e| anyhow!("Failed to decode token: {}", e))?;
 
         let claims = token_data.claims;
 
@@ -108,7 +108,7 @@ impl GithubJWKS {
                     "Token organization mismatch. Expected: {}, Found: {}",
                     org, claims.repository_owner
                 );
-                return Err(eyre!("Token is not from the expected organization"));
+                return Err(anyhow!("Token is not from the expected organization"));
             }
         }
 
@@ -122,7 +122,7 @@ impl GithubJWKS {
                     "Token repository mismatch. Expected: {}, Found: {}",
                     repo, claims.repository
                 );
-                return Err(eyre!("Token is not from the expected repository"));
+                return Err(anyhow!("Token is not from the expected repository"));
             }
         }
 

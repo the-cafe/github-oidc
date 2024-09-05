@@ -11,6 +11,7 @@ keywords = ["github", "oidc", "authentication"]
 categories = ["authentication", "web-programming"]
 
 [dependencies]
+anyhow = "1.0.86"
 color-eyre = "0.6.3"
 jsonwebtoken = "9.3.0"
 log = "0.4.22"
