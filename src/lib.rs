@@ -1,35 +1,3 @@
-//! # git-oidc
-//!
-//! `git-oidc` is a library for validating GitHub OIDC tokens.
-//!
-//! ## Features
-//!
-//! - Fetch JWKS from GitHub's OIDC provider
-//! - Validate GitHub OIDC tokens
-//! - Check token claims against expected values
-//!
-//! ## Usage
-//!
-//! ```rust
-//! use git_oidc::{fetch_jwks, validate_github_token};
-//! use std::sync::Arc;
-//! use tokio::sync::RwLock;
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let jwks = fetch_jwks("https://token.actions.githubusercontent.com").await?;
-//!     let jwks = Arc::new(RwLock::new(jwks));
-//!     
-//!     let token = "your_github_oidc_token";
-//!     let expected_audience = "your_expected_audience";
-//!     
-//!     let claims = validate_github_token(token, jwks, expected_audience).await?;
-//!     println!("Validated claims: {:?}", claims);
-//!     
-//!     Ok(())
-//! }
-//! ```
-
 use color_eyre::eyre::{eyre, Result};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use reqwest;
@@ -71,13 +39,14 @@ pub struct GitHubClaims {
 /// # Example
 ///
 /// ```
-/// use git_oidc::fetch_jwks;
+/// use github_oidc::fetch_jwks;
 /// use color_eyre::eyre::Result;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<()> {
-///     let jwks = fetch_jwks("https://token.actions.githubusercontent.com").await?;
-///     println!("Fetched JWKS: {:?}", jwks);
+///     let oidc_url = "your_oidc_provider_url";
+///     let jwks = fetch_jwks(oidc_url).await?;
+///     println!("Fetched GitHub JWKS: {:?}", jwks);
 ///     Ok(())
 /// }
 /// ```
@@ -132,14 +101,14 @@ pub async fn fetch_jwks(oidc_url: &str) -> Result<Value> {
 /// # Example
 ///
 /// ```
-/// use git_oidc::{fetch_jwks, validate_github_token};
+/// use github_oidc::{fetch_jwks, validate_github_token};
 /// use std::sync::Arc;
 /// use tokio::sync::RwLock;
 /// use color_eyre::eyre::Result;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<()> {
-///     let jwks = fetch_jwks("https://token.actions.githubusercontent.com").await?;
+///     let oidc_url = "your_oidc_provider_url";
 ///     let jwks = Arc::new(RwLock::new(jwks));
 ///     
 ///     let token = "your_github_oidc_token";
