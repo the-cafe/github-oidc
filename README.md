@@ -1,7 +1,7 @@
 # 🔐 github-oidc
 
 [![Crates.io](https://img.shields.io/crates/v/github-oidc)](https://crates.io/crates/github-oidc)
-
+[![Crate Documentation](https://docs.rs/github-oidc/badge.svg)](https://docs.rs/github-oidc)
 
 TL;DR
 
