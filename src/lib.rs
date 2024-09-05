@@ -1,7 +1,6 @@
 use color_eyre::eyre::{eyre, Result};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use log::{debug, error, info, warn};
-use reqwest;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -130,4 +129,12 @@ impl GithubJWKS {
         debug!("Token validation completed successfully");
         Ok(claims)
     }
+}
+
+pub async fn validate_github_token(
+    token: &str,
+    jwks: Arc<RwLock<GithubJWKS>>,
+    expected_audience: Option<&str>,
+) -> Result<GitHubClaims> {
+    GithubJWKS::validate_github_token(token, jwks, expected_audience).await
 }
