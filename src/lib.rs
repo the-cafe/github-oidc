@@ -25,11 +25,11 @@ pub struct GithubJWKS {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GitHubClaims {
-    sub: String,
-    repository: String,
-    repository_owner: String,
-    job_workflow_ref: String,
-    iat: u64,
+    pub sub: String,
+    pub repository: String,
+    pub repository_owner: String,
+    pub job_workflow_ref: String,
+    pub iat: u64,
 }
 
 pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS> {
