@@ -42,20 +42,22 @@ Here's the perfect ideal scenario:
 
 ### Example Custom OIDC Provider Service in Rust
 ```rust
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use github_oidc::{fetch_jwks, validate_github_token};
+use github_oidc::{GithubJWKS, validate_github_token};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 async fn custom_endpoint(
     token_request: web::Json<TokenRequest>,
     data: web::Data<AppState>,
 ) -> impl Responder {
-    match validate_github_token(&token_request.token, data.jwks.clone(), "https://github.com/your-username").await {
+    let jwks = data.jwks.clone();
+    match validate_github_token(&token_request.token, jwks, Some("https://github.com/your-username")).await {
         Ok(claims) => {
-            info!("Token validated successfully");
+            log::info!("Token validated successfully");
             HttpResponse::Ok().json(claims)
         }
         Err(e) => {
-            error!("Token validation error: {:?}", e);
+            log::error!("Token validation error: {:?}", e);
             HttpResponse::BadRequest().body(format!("Invalid token: {}", e))
         }
     }
@@ -66,7 +68,7 @@ async fn main() -> Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("debug"));
     color_eyre::install()?;
 
-    let github_oidc_url = "https://token.actions.githubusercontent.com";
+    let github_oidc_url = "your_oidc_server_url"
     let jwks = Arc::new(RwLock::new(fetch_jwks(github_oidc_url).await?));
 
     HttpServer::new(move || {
