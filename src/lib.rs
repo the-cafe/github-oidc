@@ -5,21 +5,36 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// Represents a JSON Web Key (JWK) used for token validation.
+/// 
+/// A JWK contains information about a cryptographic key used in JSON Web Tokens (JWTs).
+/// These fields are necessary to describe the key's properties and usage.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JWK {
+    /// Key type (e.g., "RSA")
     pub kty: String,
+    /// Intended use of the key (e.g., "sig" for signature)
     pub use_: Option<String>,
+    /// Unique identifier for the key
     pub kid: String,
+    /// Algorithm used with this key (e.g., "RS256")
     pub alg: Option<String>,
+    /// RSA public key modulus (base64url-encoded)
     pub n: String,
+    /// RSA public key exponent (base64url-encoded)
     pub e: String,
+    /// X.509 certificate chain (optional)
     pub x5c: Option<Vec<String>>,
+    /// X.509 certificate SHA-1 thumbprint (optional)
     pub x5t: Option<String>,
+    /// X.509 certificate SHA-256 thumbprint (optional)
     pub x5t_s256: Option<String>,
 }
 
+/// Represents a set of JSON Web Keys (JWKS) used for GitHub token validation.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GithubJWKS {
+    /// Vector of JSON Web Keys
     pub keys: Vec<JWK>,
 }
 
