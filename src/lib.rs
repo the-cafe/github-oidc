@@ -5,33 +5,95 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// Represents a JSON Web Key (JWK) used for token validation.
+///
+/// A JWK is a digital secure key used in secure web communications.
+/// It contains all the important details about the key, such as what it's for
+/// and how it works. This information helps websites verify users.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JWK {
+    /// Key type (e.g., "RSA")
     pub kty: String,
+    /// Intended use of the key (e.g., "sig" for signature)
     pub use_: Option<String>,
+    /// Unique identifier for the key
     pub kid: String,
+    /// Algorithm used with this key (e.g., "RS256")
     pub alg: Option<String>,
+    /// RSA public key modulus (base64url-encoded)
     pub n: String,
+    /// RSA public key exponent (base64url-encoded)
     pub e: String,
+    /// X.509 certificate chain (optional)
     pub x5c: Option<Vec<String>>,
+    /// X.509 certificate SHA-1 thumbprint (optional)
     pub x5t: Option<String>,
+    /// X.509 certificate SHA-256 thumbprint (optional)
     pub x5t_s256: Option<String>,
 }
 
+/// Represents a set of JSON Web Keys (JWKS) used for GitHub token validation.
+///
+/// This structure is crucial for GitHub Actions authentication because:
+///
+/// 1. GitHub Key Rotation: GitHub rotates its keys for security,
+///    and having multiple keys allows your application to validate
+///    tokens continuously during these changes.
+///
+/// 2. Multiple Environments: Different GitHub environments (like production and development)
+///    might use different keys. A set of keys allows your app to work across these environments.
+///
+/// 3. Fallback Mechanism: If one key fails for any reason, your app can try others in the set.
+///
+/// Think of it like a key ring for a building manager. They don't just carry one key,
+/// but a set of keys for different doors or areas.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GithubJWKS {
+    /// Vector of JSON Web Keys
     pub keys: Vec<JWK>,
 }
 
+/// Represents the claims contained in a GitHub Actions JWT (JSON Web Token).
+///
+/// When a GitHub Actions workflow runs, it receives a token with these claims.
+/// This struct helps decode and access the information from that token.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GitHubClaims {
-    pub sub: String,
+    /// The subject of the token (e.g the GitHub Actions runner ID).
+    pub subject: String,
+
+    /// The full name of the repository.
     pub repository: String,
+
+    /// The owner of the repository.
     pub repository_owner: String,
+
+    /// A reference to the specific job and workflow.
     pub job_workflow_ref: String,
+
+    /// The timestamp when the token was issued.
     pub iat: u64,
 }
 
+/// Fetches the JSON Web Key Set (JWKS) from the specified OIDC URL.
+///
+/// This function is used to retrieve the set of public keys that GitHub uses
+/// to sign its JSON Web Tokens (JWTs).
+///
+/// # Arguments
+///
+/// * `oidc_url` - The base URL of the OpenID Connect provider (GitHub in this case)
+///
+/// # Returns
+///
+/// * `Result<GithubJWKS>` - A Result containing the fetched JWKS if successful,
+///   or an error if the fetch or parsing fails
+///
+/// # Example
+///
+/// ```
+/// let jwks = fetch_jwks(your_oidc_url).await?;
+/// ```
 pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS> {
     info!("Fetching JWKS from {}", oidc_url);
     let client = reqwest::Client::new();
@@ -55,6 +117,27 @@ pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS> {
 }
 
 impl GithubJWKS {
+    /// Validates a GitHub OIDC token against the provided JSON Web Key Set (JWKS).
+    ///
+    /// This method performs several checks:
+    /// 1. Verifies the token format.
+    /// 2. Decodes the token header to find the key ID (kid).
+    /// 3. Locates the corresponding key in the JWKS.
+    /// 4. Validates the token signature and claims.
+    /// 5. Optionally checks the token's audience.
+    /// 6. Verifies the token's organization and repository claims against environment variables.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - The GitHub OIDC token to validate.
+    /// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
+    /// * `expected_audience` - An optional expected audience for the token.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<GitHubClaims>` containing the validated claims if successful,
+    /// or an error if validation fails.
+    ///
     pub async fn validate_github_token(
         token: &str,
         jwks: Arc<RwLock<GithubJWKS>>,
@@ -131,6 +214,40 @@ impl GithubJWKS {
     }
 }
 
+/// Validates a GitHub OIDC token.
+///
+/// This is a convenience wrapper around `GithubJWKS::validate_github_token`.
+/// It provides the same functionality but as a standalone function.
+///
+/// # Arguments
+///
+/// * `token` - The GitHub OIDC token to validate.
+/// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
+/// * `expected_audience` - An optional expected audience for the token.
+///
+/// # Returns
+///
+/// Returns a `Result<GitHubClaims>` containing the validated claims if successful,
+/// or an error if validation fails.
+///
+/// # Examples
+///
+/// ```
+/// use std::sync::Arc;
+/// use github_oidc::{GithubJWKS, validate_github_token, fetch_jwks};
+/// use color_eyre::Result;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<()> {
+///
+///     match validate_github_token(token, jwks, Some("https://github.com/your-username")).await {
+///         Ok(claims) => println!("Token validated successfully. Claims: {:?}", claims),
+///         Err(e) => eprintln!("Token validation failed: {}", e),
+///     }
+///
+///     Ok(())
+/// }
+/// ```
 pub async fn validate_github_token(
     token: &str,
     jwks: Arc<RwLock<GithubJWKS>>,
