@@ -138,14 +138,6 @@ impl GithubJWKS {
     /// Returns a `Result<GitHubClaims>` containing the validated claims if successful,
     /// or an error if validation fails.
     ///
-    /// # Errors
-    ///
-    /// This method will return an error if:
-    /// - The token format is invalid.
-    /// - The token header cannot be decoded.
-    /// - A matching key is not found in the JWKS.
-    /// - The token signature is invalid.
-    /// - The token claims do not match the expected values.
     pub async fn validate_github_token(
         token: &str,
         jwks: Arc<RwLock<GithubJWKS>>,
