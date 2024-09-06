@@ -117,6 +117,35 @@ pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS> {
 }
 
 impl GithubJWKS {
+    /// Validates a GitHub OIDC token against the provided JSON Web Key Set (JWKS).
+    ///
+    /// This method performs several checks:
+    /// 1. Verifies the token format.
+    /// 2. Decodes the token header to find the key ID (kid).
+    /// 3. Locates the corresponding key in the JWKS.
+    /// 4. Validates the token signature and claims.
+    /// 5. Optionally checks the token's audience.
+    /// 6. Verifies the token's organization and repository claims against environment variables.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - The GitHub OIDC token to validate.
+    /// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
+    /// * `expected_audience` - An optional expected audience for the token.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<GitHubClaims>` containing the validated claims if successful,
+    /// or an error if validation fails.
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if:
+    /// - The token format is invalid.
+    /// - The token header cannot be decoded.
+    /// - A matching key is not found in the JWKS.
+    /// - The token signature is invalid.
+    /// - The token claims do not match the expected values.
     pub async fn validate_github_token(
         token: &str,
         jwks: Arc<RwLock<GithubJWKS>>,
@@ -193,6 +222,38 @@ impl GithubJWKS {
     }
 }
 
+/// Validates a GitHub OIDC token.
+///
+/// This is a convenience wrapper around `GithubJWKS::validate_github_token`.
+/// It provides the same functionality but as a standalone function.
+///
+/// # Arguments
+///
+/// * `token` - The GitHub OIDC token to validate.
+/// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
+/// * `expected_audience` - An optional expected audience for the token.
+///
+/// # Returns
+///
+/// Returns a `Result<GitHubClaims>` containing the validated claims if successful,
+/// or an error if validation fails.
+///
+/// # Example
+///
+/// ```
+/// use std::sync::Arc;
+/// use tokio::sync::RwLock;
+/// use github_oidc::{GithubJWKS, validate_github_token};
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let jwks = Arc::new(RwLock::new(GithubJWKS { keys: vec![] })); // Initialize with actual keys
+///     let token = "your_github_oidc_token_here";
+///     let claims = validate_github_token(token, jwks, Some("expected_audience")).await?;
+///     println!("Validated claims: {:?}", claims);
+///     Ok(())
+/// }
+/// ```
 pub async fn validate_github_token(
     token: &str,
     jwks: Arc<RwLock<GithubJWKS>>,
