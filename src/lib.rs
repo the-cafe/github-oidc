@@ -230,19 +230,21 @@ impl GithubJWKS {
 /// Returns a `Result<GitHubClaims>` containing the validated claims if successful,
 /// or an error if validation fails.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use std::sync::Arc;
-/// use tokio::sync::RwLock;
-/// use github_oidc::{GithubJWKS, validate_github_token};
+/// use github_oidc::{GithubJWKS, validate_github_token, fetch_jwks};
+/// use color_eyre::Result;
 ///
 /// #[tokio::main]
-/// async fn main() -> anyhow::Result<()> {
-///     let jwks = Arc::new(RwLock::new(GithubJWKS { keys: vec![] })); // Initialize with actual keys
-///     let token = "your_github_oidc_token_here";
-///     let claims = validate_github_token(token, jwks, Some("expected_audience")).await?;
-///     println!("Validated claims: {:?}", claims);
+/// async fn main() -> Result<()> {
+///
+///     match validate_github_token(token, jwks, Some("https://github.com/your-username")).await {
+///         Ok(claims) => println!("Token validated successfully. Claims: {:?}", claims),
+///         Err(e) => eprintln!("Token validation failed: {}", e),
+///     }
+///
 ///     Ok(())
 /// }
 /// ```
