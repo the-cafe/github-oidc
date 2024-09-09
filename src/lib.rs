@@ -91,7 +91,7 @@ pub struct GitHubClaims {
 /// # Example
 ///
 /// ```
-/// 
+///
 /// let jwks = fetch_jwks(your_oidc_url).await?;
 /// ```
 pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS, GitHubOIDCError> {
