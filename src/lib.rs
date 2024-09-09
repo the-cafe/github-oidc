@@ -94,7 +94,7 @@ pub const DEFAULT_GITHUB_OIDC_URL: &str = "https://token.actions.githubuserconte
 ///
 /// ```
 /// use github_oidc::{fetch_jwks, DEFAULT_GITHUB_OIDC_URL};
-/// 
+///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let jwks = fetch_jwks(DEFAULT_GITHUB_OIDC_URL).await?;
