@@ -118,7 +118,7 @@ pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS, GitHubOIDCError> {
 }
 
 /// Configuration options for GitHub OIDC token validation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GitHubOIDCConfig {
     /// Expected audience for the token
     pub audience: Option<String>,
@@ -126,16 +126,6 @@ pub struct GitHubOIDCConfig {
     pub repository: Option<String>,
     /// Expected repository owner for the token
     pub repository_owner: Option<String>,
-}
-
-impl Default for GitHubOIDCConfig {
-    fn default() -> Self {
-        Self {
-            audience: None,
-            repository: None,
-            repository_owner: None,
-        }
-    }
 }
 
 impl GithubJWKS {
