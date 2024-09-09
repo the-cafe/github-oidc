@@ -1,4 +1,5 @@
-use anyhow::{anyhow, Result};
+mod errors;
+use errors::GitHubOIDCError;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
@@ -86,7 +87,7 @@ pub struct GitHubClaims {
 ///
 /// # Returns
 ///
-/// * `Result<GithubJWKS>` - A Result containing the fetched JWKS if successful,
+/// * `Result<GithubJWKS, GitHubOIDCError>` - A Result containing the fetched JWKS if successful,
 ///   or an error if the fetch or parsing fails
 ///
 /// # Example
@@ -94,7 +95,7 @@ pub struct GitHubClaims {
 /// ```
 /// let jwks = fetch_jwks(your_oidc_url).await?;
 /// ```
-pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS> {
+pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS, GitHubOIDCError> {
     info!("Fetching JWKS from {}", oidc_url);
     let client = reqwest::Client::new();
     let jwks_url = format!("{}/.well-known/jwks", oidc_url);
@@ -106,12 +107,12 @@ pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS> {
             }
             Err(e) => {
                 error!("Failed to parse JWKS response: {:?}", e);
-                Err(anyhow!("Failed to parse JWKS"))
+                Err(GitHubOIDCError::JWKSParseError(e.to_string()))
             }
         },
         Err(e) => {
             error!("Failed to fetch JWKS: {:?}", e);
-            Err(anyhow!("Failed to fetch JWKS"))
+            Err(GitHubOIDCError::JWKSFetchError(e.to_string()))
         }
     }
 }
@@ -135,28 +136,28 @@ impl GithubJWKS {
     ///
     /// # Returns
     ///
-    /// Returns a `Result<GitHubClaims>` containing the validated claims if successful,
+    /// Returns a `Result<GitHubClaims, GitHubOIDCError>` containing the validated claims if successful,
     /// or an error if validation fails.
     ///
     pub async fn validate_github_token(
         token: &str,
         jwks: Arc<RwLock<GithubJWKS>>,
         expected_audience: Option<&str>,
-    ) -> Result<GitHubClaims> {
+    ) -> Result<GitHubClaims, GitHubOIDCError> {
         debug!("Starting token validation");
         if !token.starts_with("eyJ") {
             warn!("Invalid token format received");
-            return Err(anyhow!("Invalid token format. Expected a JWT."));
+            return Err(GitHubOIDCError::InvalidTokenFormat);
         }
 
         let jwks = jwks.read().await;
         debug!("JWKS loaded");
 
         let header = jsonwebtoken::decode_header(token).map_err(|e| {
-            anyhow!(
+            GitHubOIDCError::HeaderDecodingError(format!(
                 "Failed to decode header: {}. Make sure you're using a valid JWT, not a PAT.",
                 e
-            )
+            ))
         })?;
 
         let decoding_key = if let Some(kid) = header.kid {
@@ -164,13 +165,13 @@ impl GithubJWKS {
                 .keys
                 .iter()
                 .find(|k| k.kid == kid)
-                .ok_or_else(|| anyhow!("Matching key not found in JWKS"))?;
+                .ok_or(GitHubOIDCError::KeyNotFound)?;
 
             let modulus = key.n.as_str();
             let exponent = key.e.as_str();
 
             DecodingKey::from_rsa_components(modulus, exponent)
-                .map_err(|e| anyhow!("Failed to create decoding key: {}", e))?
+                .map_err(|e| GitHubOIDCError::DecodingKeyCreationError(e.to_string()))?
         } else {
             DecodingKey::from_secret("your_secret_key".as_ref())
         };
@@ -181,7 +182,7 @@ impl GithubJWKS {
         }
 
         let token_data = decode::<GitHubClaims>(token, &decoding_key, &validation)
-            .map_err(|e| anyhow!("Failed to decode token: {}", e))?;
+            .map_err(|e| GitHubOIDCError::TokenDecodingError(e.to_string()))?;
 
         let claims = token_data.claims;
 
@@ -191,7 +192,7 @@ impl GithubJWKS {
                     "Token organization mismatch. Expected: {}, Found: {}",
                     org, claims.repository_owner
                 );
-                return Err(anyhow!("Token is not from the expected organization"));
+                return Err(GitHubOIDCError::OrganizationMismatch);
             }
         }
 
@@ -205,7 +206,7 @@ impl GithubJWKS {
                     "Token repository mismatch. Expected: {}, Found: {}",
                     repo, claims.repository
                 );
-                return Err(anyhow!("Token is not from the expected repository"));
+                return Err(GitHubOIDCError::RepositoryMismatch);
             }
         }
 
@@ -227,7 +228,7 @@ impl GithubJWKS {
 ///
 /// # Returns
 ///
-/// Returns a `Result<GitHubClaims>` containing the validated claims if successful,
+/// Returns a `Result<GitHubClaims, GitHubOIDCError>` containing the validated claims if successful,
 /// or an error if validation fails.
 ///
 /// # Examples
@@ -252,6 +253,6 @@ pub async fn validate_github_token(
     token: &str,
     jwks: Arc<RwLock<GithubJWKS>>,
     expected_audience: Option<&str>,
-) -> Result<GitHubClaims> {
+) -> Result<GitHubClaims, GitHubOIDCError> {
     GithubJWKS::validate_github_token(token, jwks, expected_audience).await
 }
