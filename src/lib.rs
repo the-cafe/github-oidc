@@ -93,7 +93,15 @@ pub struct GitHubClaims {
 /// # Example
 ///
 /// ```
-/// let jwks = fetch_jwks(your_oidc_url).await?;
+/// use github_oidc::fetch_jwks;
+/// 
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let oidc_url = "https://token.actions.githubusercontent.com";
+///     let jwks = fetch_jwks(oidc_url).await?;
+///     println!("JWKS: {:?}", jwks);
+///     Ok(())
+/// }
 /// ```
 pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS, GitHubOIDCError> {
     info!("Fetching JWKS from {}", oidc_url);
@@ -252,12 +260,13 @@ impl GithubJWKS {
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let oidc_url = "https://token.actions.githubusercontent.com";
-///     let jwks = Arc::new(RwLock::new(fetch_jwks(oidc_url).await?));
+///     let jwks = fetch_jwks(oidc_url).await?;
 ///     
 ///     let config = GitHubOIDCConfig {
-///         audience: Some("https://github.com/your-username".to_string()),
-///         repository: Some("your-username/your-repo".to_string()),
-///         repository_owner: Some("your-username".to_string()),
+/// 
+///         audience: Some("https://github.com/seif-mamdouh".to_string()),
+///         repository: Some("seif-mamdouh/your-repo".to_string()),
+///         repository_owner: Some("seif-mamdouh".to_string()),
 ///     };
 ///
 ///     let token = "your_github_oidc_token_here";
