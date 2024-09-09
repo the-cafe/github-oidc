@@ -3,6 +3,7 @@ use errors::GitHubOIDCError;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
+use std::future::Future;
 
 /// Represents a JSON Web Key (JWK) used for token validation.
 ///
@@ -137,7 +138,7 @@ impl GithubJWKS {
     /// Returns a `Result<GitHubClaims, GitHubOIDCError>` containing the validated claims if successful,
     /// or an error if validation fails.
     ///
-    pub fn validate_github_token(
+    pub async fn validate_github_token(
         &self,
         token: &str,
         expected_audience: Option<&str>,
@@ -245,10 +246,12 @@ impl GithubJWKS {
 ///     Ok(())
 /// }
 /// ```
-pub fn validate_github_token(
-    token: &str,
-    jwks: &GithubJWKS,
-    expected_audience: Option<&str>,
-) -> Result<GitHubClaims, GitHubOIDCError> {
-    jwks.validate_github_token(token, expected_audience)
+pub fn validate_github_token<'a>(
+    token: &'a str,
+    jwks: &'a GithubJWKS,
+    expected_audience: Option<&'a str>,
+) -> impl Future<Output = Result<GitHubClaims, GitHubOIDCError>> + 'a {
+    async move {
+        jwks.validate_github_token(token, expected_audience).await
+    }
 }
