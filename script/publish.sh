@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# Check if cargo-semver-checks is installed
 if ! command -v cargo-semver-checks &> /dev/null
 then
     echo "cargo-semver-checks is not installed. Installing now..."
