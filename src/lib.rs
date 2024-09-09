@@ -117,6 +117,27 @@ pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS, GitHubOIDCError> {
     }
 }
 
+/// Configuration options for GitHub OIDC token validation
+#[derive(Debug, Clone)]
+pub struct GitHubOIDCConfig {
+    /// Expected audience for the token
+    pub audience: Option<String>,
+    /// Expected repository for the token
+    pub repository: Option<String>,
+    /// Expected repository owner for the token
+    pub repository_owner: Option<String>,
+}
+
+impl Default for GitHubOIDCConfig {
+    fn default() -> Self {
+        Self {
+            audience: None,
+            repository: None,
+            repository_owner: None,
+        }
+    }
+}
+
 impl GithubJWKS {
     /// Validates a GitHub OIDC token against the provided JSON Web Key Set (JWKS).
     ///
@@ -132,7 +153,7 @@ impl GithubJWKS {
     ///
     /// * `token` - The GitHub OIDC token to validate.
     /// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
-    /// * `expected_audience` - An optional expected audience for the token.
+    /// * `config` - A `GitHubOIDCConfig` struct containing validation options.
     ///
     /// # Returns
     ///
@@ -142,7 +163,7 @@ impl GithubJWKS {
     pub async fn validate_github_token(
         token: &str,
         jwks: Arc<RwLock<GithubJWKS>>,
-        expected_audience: Option<&str>,
+        config: &GitHubOIDCConfig,
     ) -> Result<GitHubClaims, GitHubOIDCError> {
         debug!("Starting token validation");
         if !token.starts_with("eyJ") {
@@ -177,7 +198,7 @@ impl GithubJWKS {
         };
 
         let mut validation = Validation::new(Algorithm::RS256);
-        if let Some(audience) = expected_audience {
+        if let Some(audience) = &config.audience {
             validation.set_audience(&[audience]);
         }
 
@@ -186,25 +207,25 @@ impl GithubJWKS {
 
         let claims = token_data.claims;
 
-        if let Ok(org) = std::env::var("GITHUB_ORG") {
-            if claims.repository_owner != org {
+        if let Some(expected_owner) = &config.repository_owner {
+            if claims.repository_owner != *expected_owner {
                 warn!(
                     "Token organization mismatch. Expected: {}, Found: {}",
-                    org, claims.repository_owner
+                    expected_owner, claims.repository_owner
                 );
                 return Err(GitHubOIDCError::OrganizationMismatch);
             }
         }
 
-        if let Ok(repo) = std::env::var("GITHUB_REPO") {
+        if let Some(expected_repo) = &config.repository {
             debug!(
                 "Comparing repositories - Expected: {}, Found: {}",
-                repo, claims.repository
+                expected_repo, claims.repository
             );
-            if claims.repository != repo {
+            if claims.repository != *expected_repo {
                 warn!(
                     "Token repository mismatch. Expected: {}, Found: {}",
-                    repo, claims.repository
+                    expected_repo, claims.repository
                 );
                 return Err(GitHubOIDCError::RepositoryMismatch);
             }
@@ -224,7 +245,7 @@ impl GithubJWKS {
 ///
 /// * `token` - The GitHub OIDC token to validate.
 /// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
-/// * `expected_audience` - An optional expected audience for the token.
+/// * `config` - A `GitHubOIDCConfig` struct containing validation options.
 ///
 /// # Returns
 ///
@@ -235,13 +256,23 @@ impl GithubJWKS {
 ///
 /// ```
 /// use std::sync::Arc;
-/// use github_oidc::{GithubJWKS, validate_github_token, fetch_jwks};
-/// use color_eyre::Result;
+/// use github_oidc::{GithubJWKS, validate_github_token, fetch_jwks, GitHubOIDCConfig};
+/// use tokio::sync::RwLock;
 ///
 /// #[tokio::main]
-/// async fn main() -> Result<()> {
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let oidc_url = "https://token.actions.githubusercontent.com";
+///     let jwks = Arc::new(RwLock::new(fetch_jwks(oidc_url).await?));
+///     
+///     let config = GitHubOIDCConfig {
+///         audience: Some("https://github.com/your-username".to_string()),
+///         repository: Some("your-username/your-repo".to_string()),
+///         repository_owner: Some("your-username".to_string()),
+///     };
 ///
-///     match validate_github_token(token, jwks, Some("https://github.com/your-username")).await {
+///     let token = "your_github_oidc_token_here";
+///
+///     match validate_github_token(token, jwks, &config).await {
 ///         Ok(claims) => println!("Token validated successfully. Claims: {:?}", claims),
 ///         Err(e) => eprintln!("Token validation failed: {}", e),
 ///     }
@@ -252,7 +283,7 @@ impl GithubJWKS {
 pub async fn validate_github_token(
     token: &str,
     jwks: Arc<RwLock<GithubJWKS>>,
-    expected_audience: Option<&str>,
+    config: &GitHubOIDCConfig,
 ) -> Result<GitHubClaims, GitHubOIDCError> {
-    GithubJWKS::validate_github_token(token, jwks, expected_audience).await
+    GithubJWKS::validate_github_token(token, jwks, config).await
 }
