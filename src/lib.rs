@@ -3,8 +3,6 @@ use errors::GitHubOIDCError;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Represents a JSON Web Key (JWK) used for token validation.
 ///
@@ -93,6 +91,7 @@ pub struct GitHubClaims {
 /// # Example
 ///
 /// ```
+/// 
 /// let jwks = fetch_jwks(your_oidc_url).await?;
 /// ```
 pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS, GitHubOIDCError> {
@@ -131,7 +130,6 @@ impl GithubJWKS {
     /// # Arguments
     ///
     /// * `token` - The GitHub OIDC token to validate.
-    /// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
     /// * `expected_audience` - An optional expected audience for the token.
     ///
     /// # Returns
@@ -139,9 +137,9 @@ impl GithubJWKS {
     /// Returns a `Result<GitHubClaims, GitHubOIDCError>` containing the validated claims if successful,
     /// or an error if validation fails.
     ///
-    pub async fn validate_github_token(
+    pub fn validate_github_token(
+        &self,
         token: &str,
-        jwks: Arc<RwLock<GithubJWKS>>,
         expected_audience: Option<&str>,
     ) -> Result<GitHubClaims, GitHubOIDCError> {
         debug!("Starting token validation");
@@ -150,7 +148,6 @@ impl GithubJWKS {
             return Err(GitHubOIDCError::InvalidTokenFormat);
         }
 
-        let jwks = jwks.read().await;
         debug!("JWKS loaded");
 
         let header = jsonwebtoken::decode_header(token).map_err(|e| {
@@ -161,7 +158,7 @@ impl GithubJWKS {
         })?;
 
         let decoding_key = if let Some(kid) = header.kid {
-            let key = jwks
+            let key = self
                 .keys
                 .iter()
                 .find(|k| k.kid == kid)
@@ -223,7 +220,7 @@ impl GithubJWKS {
 /// # Arguments
 ///
 /// * `token` - The GitHub OIDC token to validate.
-/// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
+/// * `jwks` - A reference to `GithubJWKS` containing the JSON Web Key Set.
 /// * `expected_audience` - An optional expected audience for the token.
 ///
 /// # Returns
@@ -234,14 +231,15 @@ impl GithubJWKS {
 /// # Examples
 ///
 /// ```
-/// use std::sync::Arc;
 /// use github_oidc::{GithubJWKS, validate_github_token, fetch_jwks};
 /// use color_eyre::Result;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<()> {
+///     let jwks = fetch_jwks("https://token.actions.githubusercontent.com").await?;
+///     let token = "your_github_oidc_token_here";
 ///
-///     match validate_github_token(token, jwks, Some("https://github.com/your-username")).await {
+///     match validate_github_token(token, &jwks, Some("https://github.com/your-username")) {
 ///         Ok(claims) => println!("Token validated successfully. Claims: {:?}", claims),
 ///         Err(e) => eprintln!("Token validation failed: {}", e),
 ///     }
@@ -249,10 +247,10 @@ impl GithubJWKS {
 ///     Ok(())
 /// }
 /// ```
-pub async fn validate_github_token(
+pub fn validate_github_token(
     token: &str,
-    jwks: Arc<RwLock<GithubJWKS>>,
+    jwks: &GithubJWKS,
     expected_audience: Option<&str>,
 ) -> Result<GitHubClaims, GitHubOIDCError> {
-    GithubJWKS::validate_github_token(token, jwks, expected_audience).await
+    jwks.validate_github_token(token, expected_audience)
 }
