@@ -236,8 +236,6 @@ impl GithubJWKS {
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<()> {
-///     let jwks = fetch_jwks("https://token.actions.githubusercontent.com").await?;
-///     let token = "your_github_oidc_token_here";
 ///
 ///     match validate_github_token(token, &jwks, Some("https://github.com/your-username")) {
 ///         Ok(claims) => println!("Token validated successfully. Claims: {:?}", claims),
