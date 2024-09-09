@@ -76,14 +76,14 @@ pub struct GitHubClaims {
     pub iat: u64,
 }
 
+/// Default URL for fetching GitHub OIDC tokens
+pub const DEFAULT_GITHUB_OIDC_URL: &str = "https://token.actions.githubusercontent.com";
+
 /// Fetches the JSON Web Key Set (JWKS) from the specified OIDC URL.
-///
-/// This function is used to retrieve the set of public keys that GitHub uses
-/// to sign its JSON Web Tokens (JWTs).
 ///
 /// # Arguments
 ///
-/// * `oidc_url` - The base URL of the OpenID Connect provider (GitHub in this case)
+/// * `oidc_url` - The base URL of the OpenID Connect provider (GitHub by default)
 ///
 /// # Returns
 ///
@@ -93,12 +93,11 @@ pub struct GitHubClaims {
 /// # Example
 ///
 /// ```
-/// use github_oidc::fetch_jwks;
+/// use github_oidc::{fetch_jwks, DEFAULT_GITHUB_OIDC_URL};
 /// 
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let oidc_url = "https://token.actions.githubusercontent.com";
-///     let jwks = fetch_jwks(oidc_url).await?;
+///     let jwks = fetch_jwks(DEFAULT_GITHUB_OIDC_URL).await?;
 ///     println!("JWKS: {:?}", jwks);
 ///     Ok(())
 /// }
@@ -254,19 +253,17 @@ impl GithubJWKS {
 ///
 /// ```
 /// use std::sync::Arc;
-/// use github_oidc::{GithubJWKS, validate_github_token, fetch_jwks, GitHubOIDCConfig};
+/// use github_oidc::{GithubJWKS, validate_github_token, fetch_jwks, GitHubOIDCConfig, DEFAULT_GITHUB_OIDC_URL};
 /// use tokio::sync::RwLock;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let oidc_url = "https://token.actions.githubusercontent.com";
-///     let jwks = fetch_jwks(oidc_url).await?;
+///     let jwks = Arc::new(RwLock::new(fetch_jwks(DEFAULT_GITHUB_OIDC_URL).await?));
 ///     
 ///     let config = GitHubOIDCConfig {
-/// 
-///         audience: Some("https://github.com/seif-mamdouh".to_string()),
-///         repository: Some("seif-mamdouh/your-repo".to_string()),
-///         repository_owner: Some("seif-mamdouh".to_string()),
+///         audience: Some("https://github.com/user-name".to_string()),
+///         repository: Some("user-name/repo".to_string()),
+///         repository_owner: Some("user-name".to_string()),
 ///     };
 ///
 ///     let token = "your_github_oidc_token_here";
