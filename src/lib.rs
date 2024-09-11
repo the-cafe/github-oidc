@@ -3,8 +3,6 @@ use errors::GitHubOIDCError;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Represents a JSON Web Key (JWK) used for token validation.
 ///
@@ -151,15 +149,16 @@ impl GithubJWKS {
     /// * `token` - The GitHub OIDC token to validate.
     /// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
     /// * `config` - A `GitHubOIDCConfig` struct containing validation options.
+    /// * `expected_audience` - An optional expected audience for the token.
     ///
     /// # Returns
     ///
     /// Returns a `Result<GitHubClaims, GitHubOIDCError>` containing the validated claims if successful,
     /// or an error if validation fails.
     ///
-    pub async fn validate_github_token(
+    pub fn validate_github_token(
+        &self,
         token: &str,
-        jwks: Arc<RwLock<GithubJWKS>>,
         config: &GitHubOIDCConfig,
     ) -> Result<GitHubClaims, GitHubOIDCError> {
         debug!("Starting token validation");
@@ -168,7 +167,6 @@ impl GithubJWKS {
             return Err(GitHubOIDCError::InvalidTokenFormat);
         }
 
-        let jwks = jwks.read().await;
         debug!("JWKS loaded");
 
         let header = jsonwebtoken::decode_header(token).map_err(|e| {
@@ -179,7 +177,7 @@ impl GithubJWKS {
         })?;
 
         let decoding_key = if let Some(kid) = header.kid {
-            let key = jwks
+            let key = self
                 .keys
                 .iter()
                 .find(|k| k.kid == kid)
@@ -231,55 +229,4 @@ impl GithubJWKS {
         debug!("Token validation completed successfully");
         Ok(claims)
     }
-}
-
-/// Validates a GitHub OIDC token.
-///
-/// This is a convenience wrapper around `GithubJWKS::validate_github_token`.
-/// It provides the same functionality but as a standalone function.
-///
-/// # Arguments
-///
-/// * `token` - The GitHub OIDC token to validate.
-/// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
-/// * `config` - A `GitHubOIDCConfig` struct containing validation options.
-///
-/// # Returns
-///
-/// Returns a `Result<GitHubClaims, GitHubOIDCError>` containing the validated claims if successful,
-/// or an error if validation fails.
-///
-/// # Examples
-///
-/// ```
-/// use std::sync::Arc;
-/// use github_oidc::{GithubJWKS, validate_github_token, fetch_jwks, GitHubOIDCConfig, DEFAULT_GITHUB_OIDC_URL};
-/// use tokio::sync::RwLock;
-///
-/// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let jwks = Arc::new(RwLock::new(fetch_jwks(DEFAULT_GITHUB_OIDC_URL).await?));
-///     
-///     let config = GitHubOIDCConfig {
-///         audience: Some("https://github.com/user-name".to_string()),
-///         repository: Some("user-name/repo".to_string()),
-///         repository_owner: Some("user-name".to_string()),
-///     };
-///
-///     let token = "your_github_oidc_token_here";
-///
-///     match validate_github_token(token, jwks, &config).await {
-///         Ok(claims) => println!("Token validated successfully. Claims: {:?}", claims),
-///         Err(e) => eprintln!("Token validation failed: {}", e),
-///     }
-///
-///     Ok(())
-/// }
-/// ```
-pub async fn validate_github_token(
-    token: &str,
-    jwks: Arc<RwLock<GithubJWKS>>,
-    config: &GitHubOIDCConfig,
-) -> Result<GitHubClaims, GitHubOIDCError> {
-    GithubJWKS::validate_github_token(token, jwks, config).await
 }
