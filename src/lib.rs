@@ -74,14 +74,14 @@ pub struct GitHubClaims {
     pub iat: u64,
 }
 
+/// Default URL for fetching GitHub OIDC tokens
+pub const DEFAULT_GITHUB_OIDC_URL: &str = "https://token.actions.githubusercontent.com";
+
 /// Fetches the JSON Web Key Set (JWKS) from the specified OIDC URL.
-///
-/// This function is used to retrieve the set of public keys that GitHub uses
-/// to sign its JSON Web Tokens (JWTs).
 ///
 /// # Arguments
 ///
-/// * `oidc_url` - The base URL of the OpenID Connect provider (GitHub in this case)
+/// * `oidc_url` - The base URL of the OpenID Connect provider (GitHub by default)
 ///
 /// # Returns
 ///
@@ -91,8 +91,14 @@ pub struct GitHubClaims {
 /// # Example
 ///
 /// ```
+/// use github_oidc::{fetch_jwks, DEFAULT_GITHUB_OIDC_URL};
 ///
-/// let jwks = fetch_jwks(your_oidc_url).await?;
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let jwks = fetch_jwks(DEFAULT_GITHUB_OIDC_URL).await?;
+///     println!("JWKS: {:?}", jwks);
+///     Ok(())
+/// }
 /// ```
 pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS, GitHubOIDCError> {
     info!("Fetching JWKS from {}", oidc_url);
@@ -116,6 +122,17 @@ pub async fn fetch_jwks(oidc_url: &str) -> Result<GithubJWKS, GitHubOIDCError> {
     }
 }
 
+/// Configuration options for GitHub OIDC token validation
+#[derive(Debug, Clone, Default)]
+pub struct GitHubOIDCConfig {
+    /// Expected audience for the token
+    pub audience: Option<String>,
+    /// Expected repository for the token
+    pub repository: Option<String>,
+    /// Expected repository owner for the token
+    pub repository_owner: Option<String>,
+}
+
 impl GithubJWKS {
     /// Validates a GitHub OIDC token against the provided JSON Web Key Set (JWKS).
     ///
@@ -130,6 +147,8 @@ impl GithubJWKS {
     /// # Arguments
     ///
     /// * `token` - The GitHub OIDC token to validate.
+    /// * `jwks` - An `Arc<RwLock<GithubJWKS>>` containing the JSON Web Key Set.
+    /// * `config` - A `GitHubOIDCConfig` struct containing validation options.
     /// * `expected_audience` - An optional expected audience for the token.
     ///
     /// # Returns
@@ -140,8 +159,9 @@ impl GithubJWKS {
     pub fn validate_github_token(
         &self,
         token: &str,
-        expected_audience: Option<&str>,
+        config: &GitHubOIDCConfig,
     ) -> Result<GitHubClaims, GitHubOIDCError> {
+        
         debug!("Starting token validation");
         if !token.starts_with("eyJ") {
             warn!("Invalid token format received");
@@ -174,7 +194,7 @@ impl GithubJWKS {
         };
 
         let mut validation = Validation::new(Algorithm::RS256);
-        if let Some(audience) = expected_audience {
+        if let Some(audience) = &config.audience {
             validation.set_audience(&[audience]);
         }
 
@@ -183,25 +203,25 @@ impl GithubJWKS {
 
         let claims = token_data.claims;
 
-        if let Ok(org) = std::env::var("GITHUB_ORG") {
-            if claims.repository_owner != org {
+        if let Some(expected_owner) = &config.repository_owner {
+            if claims.repository_owner != *expected_owner {
                 warn!(
                     "Token organization mismatch. Expected: {}, Found: {}",
-                    org, claims.repository_owner
+                    expected_owner, claims.repository_owner
                 );
                 return Err(GitHubOIDCError::OrganizationMismatch);
             }
         }
 
-        if let Ok(repo) = std::env::var("GITHUB_REPO") {
+        if let Some(expected_repo) = &config.repository {
             debug!(
                 "Comparing repositories - Expected: {}, Found: {}",
-                repo, claims.repository
+                expected_repo, claims.repository
             );
-            if claims.repository != repo {
+            if claims.repository != *expected_repo {
                 warn!(
                     "Token repository mismatch. Expected: {}, Found: {}",
-                    repo, claims.repository
+                    expected_repo, claims.repository
                 );
                 return Err(GitHubOIDCError::RepositoryMismatch);
             }
