@@ -161,7 +161,6 @@ impl GithubJWKS {
         token: &str,
         config: &GitHubOIDCConfig,
     ) -> Result<GitHubClaims, GitHubOIDCError> {
-        
         debug!("Starting token validation");
         if !token.starts_with("eyJ") {
             warn!("Invalid token format received");
