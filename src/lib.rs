@@ -59,7 +59,7 @@ pub struct GithubJWKS {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GitHubClaims {
     /// The subject of the token (e.g the GitHub Actions runner ID).
-    pub subject: String,
+    pub sub: String,
 
     /// The full name of the repository.
     pub repository: String,
