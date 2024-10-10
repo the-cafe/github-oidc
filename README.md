@@ -21,7 +21,6 @@ TL;DR
  github-oidc = "insert_latest_version_here" # e.g. 0.1.4
  ```
 
-
 ## 🎯 Ideal Use Case: Secure CI/CD Pipeline for Sensitive Operations
 
 github-oidc enables secure, credential-free authentication for custom GitHub Actions workflow integrations.
