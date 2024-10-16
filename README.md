@@ -12,7 +12,6 @@ TL;DR
 - No more long-lived credentials in your repository
 
 ## 🚀 Installation
-
 `cargo add github-oidc`
  
  or add the dependency to your Cargo.toml
