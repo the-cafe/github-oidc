@@ -11,6 +11,8 @@ TL;DR
 - Fetches JWKS and verifies token claims for GitHub Actions
 - No more long-lived credentials in your repository
 
+Checkout my [blog](https://medium.com/@seifmamdouh7878/knowledge-diaries-the-finale-i-launched-a-rust-crate-ced08aa73fdf) for more detailed information
+
 ## 🚀 Installation
 `cargo add github-oidc`
  
