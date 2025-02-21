@@ -1,5 +1,5 @@
 mod errors;
-use errors::GitHubOIDCError;
+pub use errors::GitHubOIDCError;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
@@ -58,7 +58,7 @@ pub struct GithubJWKS {
 /// This struct helps decode and access the information from that token.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GitHubClaims {
-    /// The subject of the token (e.g the GitHub Actions runner ID).
+    /// The subject of the token (e.g. the GitHub Actions runner ID).
     pub sub: String,
 
     /// The full name of the repository.
