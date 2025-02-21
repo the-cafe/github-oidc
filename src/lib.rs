@@ -1,5 +1,7 @@
 mod errors;
-use errors::GitHubOIDCError;
+
+use std::collections::HashMap;
+use errors::{GitHubOIDCError, GitHubOIDCClaimsTimeError};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
@@ -56,22 +58,121 @@ pub struct GithubJWKS {
 ///
 /// When a GitHub Actions workflow runs, it receives a token with these claims.
 /// This struct helps decode and access the information from that token.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct GitHubClaims {
+    /// The ID of the token.
+    pub jti: String,
+
     /// The subject of the token (e.g the GitHub Actions runner ID).
     pub sub: String,
+
+    /// The intended audience of the token, typically the repository owner.
+    #[serde(rename = "aud")]
+    pub audience: String,
+
+    /// The SHA of the commit that caused the token to be created.
+    pub sha: Option<String>,
 
     /// The full name of the repository.
     pub repository: String,
 
+    /// The ID of the repository.
+    pub repository_id: u64,
+
     /// The owner of the repository.
     pub repository_owner: String,
+
+    /// The ID of the owner of the repository.
+    pub repository_owner_id: u64,
+
+    /// The ID of the workflow run that created the token.
+    pub run_id: Option<u64>,
+
+    /// The number  of the workflow run that created the token.
+    pub run_number: Option<u64>,
+
+    /// The attempt of the workflow run that created the token.
+    pub run_attempt: Option<u64>,
+
+    /// The name of the workflow.
+    pub workflow: Option<String>,
+
+    /// The reference to the specific workflow.
+    pub workflow_ref: Option<String>,
+
+    /// The SHA hash of the workflow run.
+    pub workflow_sha: Option<String>,
 
     /// A reference to the specific job and workflow.
     pub job_workflow_ref: String,
 
+    /// The SHA hash to the commit of the specific job and workflow.
+    pub job_workflow_sha: String,
+
+    /// The environment that was targeted by the workflow run.
+    pub environment: Option<String>,
+
+    /// The name of the enterprise owning the repository.
+    pub enterprise: Option<String>,
+
+    /// The ID of the enterprise owning the repository.
+    pub enterprise_id: Option<u64>,
+
     /// The timestamp when the token was issued.
     pub iat: u64,
+
+    /// The timestamp when the token expires.
+    #[serde(rename = "exp")]
+    pub expires_at: u64,
+
+    /// The timestamp after which the token is valid.
+    #[serde(rename = "nbf")]
+    pub not_before: u64,
+
+    /// Captures extra fields.
+    #[serde(flatten)]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+impl GitHubClaims {
+    /// Validates whether the token is valid given the provided SystemTime.
+    ///
+    /// This function checks if the current time is between `not_before` (nbf) and `expires_at` (exp),
+    /// ensuring the token is valid for use. It also ensures that the `iat` (issued at) time is in the past.
+    ///
+    /// # Arguments
+    ///
+    /// * `time` - The `SystemTime` to validate the token against.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Result<(), GitHubOIDCClaimsTimeError>` with `Ok(())` if the token is valid,
+    /// or an appropriate error if the token is invalid or expired.
+    fn validate_time(&self, time: std::time::SystemTime) -> Result<(), GitHubOIDCClaimsTimeError> {
+        let current_timestamp = time
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| GitHubOIDCClaimsTimeError::InvalidTime)?
+            .as_secs();
+
+        if self.not_before > self.expires_at {
+            return Err(GitHubOIDCClaimsTimeError::InvalidTimeWindow);
+        }
+        
+        if self.iat > current_timestamp {
+            return Err(GitHubOIDCClaimsTimeError::TokenIssuedInFuture);
+        }
+
+        if current_timestamp < self.not_before {
+            return Err(GitHubOIDCClaimsTimeError::TokenNotYetValid);
+        }
+
+        if current_timestamp > self.expires_at {
+            return Err(GitHubOIDCClaimsTimeError::TokenExpired);
+        }
+        
+        Ok(())
+    }
 }
 
 /// Default URL for fetching GitHub OIDC tokens
@@ -201,7 +302,8 @@ impl GithubJWKS {
             .map_err(|e| GitHubOIDCError::TokenDecodingError(e.to_string()))?;
 
         let claims = token_data.claims;
-
+        claims.validate_time(std::time::SystemTime::now())?;
+        
         if let Some(expected_owner) = &config.repository_owner {
             if claims.repository_owner != *expected_owner {
                 warn!(
@@ -228,5 +330,91 @@ impl GithubJWKS {
 
         debug!("Token validation completed successfully");
         Ok(claims)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, UNIX_EPOCH};
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_deserialize_github_claims() {
+        let claims_json = json!({
+            "job_workflow_ref": "example/workflow@sha",
+            "job_workflow_sha": "abc123def456",
+            "environment": "production",
+            "enterprise": "ExampleCorp",
+            "enterprise_id": 42,
+            "iat": 1691986810,
+            "exp": 1691990410,
+            "nbf": 1691986410,
+            "extra_field": "extra_value"
+        });
+
+        let claims: GitHubClaims = serde_json::from_value(claims_json).expect("Failed to deserialize claims");
+
+        assert_eq!(claims.job_workflow_ref, "example/workflow@sha");
+        assert_eq!(claims.job_workflow_sha, "abc123def456");
+        assert_eq!(claims.environment.unwrap(), "production");
+        assert_eq!(claims.enterprise.unwrap(), "ExampleCorp");
+        assert_eq!(claims.enterprise_id.unwrap(), 42);
+        assert_eq!(claims.iat, 1691986810);
+        assert_eq!(claims.expires_at, 1691990410);
+        assert_eq!(claims.not_before, 1691986410);
+        assert_eq!(claims.extra.get("extra_field").unwrap(), "extra_value");
+    }
+    
+
+    #[test]
+    fn test_token_validation_before_nbf_timestamp() {
+        let claims = GitHubClaims {
+            iat: 1691986810, // Issued At
+            expires_at: 1691990410,
+            not_before: 1691987000,
+            ..Default::default()
+        };
+
+        let result = claims.validate_time(UNIX_EPOCH + Duration::from_secs(1691986810));
+        assert_eq!(result, Err(GitHubOIDCClaimsTimeError::TokenNotYetValid));
+    }
+
+    #[test]
+    fn test_token_expired() {
+        let claims = GitHubClaims {
+            iat: 1691986810,
+            expires_at: 1691990410,
+            not_before: 1691986410,
+            ..Default::default()
+        };
+
+        let result = claims.validate_time(UNIX_EPOCH + Duration::from_secs(1691990500));
+        assert_eq!(result, Err(GitHubOIDCClaimsTimeError::TokenExpired));
+    }
+
+    #[test]
+    fn test_token_issued_in_future() {
+        let claims_with_future_iat = GitHubClaims {
+            iat: 1700000000, // Issued At in the future
+            expires_at: 1700003600,
+            not_before: 1691986410,
+            ..Default::default()
+        };
+        let result = claims_with_future_iat.validate_time(UNIX_EPOCH + Duration::from_secs(1691990000));
+        assert_eq!(result, Err(GitHubOIDCClaimsTimeError::TokenIssuedInFuture));
+    }
+
+    #[test]
+    fn test_token_invalid_time_constraint() {
+        let claims_with_invalid_nbf_exp = GitHubClaims {
+            iat: 1691986810,
+            expires_at: 1691987000, // Expiration time is before `nbf`
+            not_before: 1691987100,
+            ..Default::default()
+        };
+        let result = claims_with_invalid_nbf_exp.validate_time(UNIX_EPOCH + Duration::from_secs(1691987200));
+        assert_eq!(result, Err(GitHubOIDCClaimsTimeError::InvalidTimeWindow));
     }
 }
