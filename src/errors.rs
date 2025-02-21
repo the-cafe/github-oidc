@@ -28,4 +28,22 @@ pub enum GitHubOIDCError {
 
     #[error("Failed to parse JWKS: {0}")]
     JWKSParseError(String),
+
+    #[error("Token validation failed: {0}")]
+    InvalidTime(#[from] GitHubOIDCClaimsTimeError)
+}
+
+#[derive(Error, Debug, PartialEq)]
+#[non_exhaustive]
+pub enum GitHubOIDCClaimsTimeError {
+    #[error("The provided time was invalid")]
+    InvalidTime,
+    #[error("The token has invalid time constraints")]
+    InvalidTimeWindow,
+    #[error("The token was issued in the future")]
+    TokenIssuedInFuture,
+    #[error("The token is not yet valid")]
+    TokenNotYetValid,
+    #[error("The token has expired")]
+    TokenExpired,
 }
