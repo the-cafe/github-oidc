@@ -155,7 +155,7 @@ impl GitHubClaims {
             .map_err(|_| GitHubOIDCClaimsTimeError::InvalidTime)?
             .as_secs();
 
-        if self.not_before > self.expires_at {
+        if self.not_before > 0 && self.expires_at > 0 && self.not_before > self.expires_at {
             return Err(GitHubOIDCClaimsTimeError::InvalidTimeWindow);
         }
         
@@ -163,11 +163,11 @@ impl GitHubClaims {
             return Err(GitHubOIDCClaimsTimeError::TokenIssuedInFuture);
         }
 
-        if current_timestamp < self.not_before {
+        if self.not_before > 0 && current_timestamp < self.not_before {
             return Err(GitHubOIDCClaimsTimeError::TokenNotYetValid);
         }
 
-        if current_timestamp > self.expires_at {
+        if self.expires_at > 0 && current_timestamp > self.expires_at {
             return Err(GitHubOIDCClaimsTimeError::TokenExpired);
         }
         
@@ -303,7 +303,7 @@ impl GithubJWKS {
 
         let claims = token_data.claims;
         claims.validate_time(std::time::SystemTime::now())?;
-        
+
         if let Some(expected_owner) = &config.repository_owner {
             if claims.repository_owner != *expected_owner {
                 warn!(
